@@ -6,16 +6,34 @@
 
 Log4j2 远程代码执行漏洞，BurpSuite被动扫描插件。
 
-v0.4版本已加入RC1补丁的绕过poc。
+支持精确提示漏洞参数、漏洞位置，支持多dnslog平台扩展、自动忽略静态文件。
 
-暂只支持Url、Cookie、POST(x-www-form-urlencoded)类型的参数fuzz。
+漏洞检测暂只支持以下类型
+- Url
+- Cookie
+- Header
+- Body(x-www-form-urlencoded)
+
+# ChangeLog
+### 2021/12/12
+##### v0.6
+1. 加入静态文件过滤。
+2. 加入多POC支持，共十种poc变种，默认启用POC1~4。
+3. 加入burpcollaborator的dnslog支持，默认使用dnslog.cn。
+### 2021/12/11
+##### v0.5
+1. 加入Header的fuzz功能。
+##### v0.4
+1. 加入RC1补丁的绕过poc。
+
+# 效果截图
 
 ![](screenshots/detected.png)
 
 
 # 修改Dnslog平台
 
-因为没有太多的时候去开发界面，有修改dnslog平台需求的可以先临时使用以下方法手动切换Dnslog平台为`ceye.io`
+因为没有太多的时间去开发界面，有修改dnslog平台需求的可以先临时使用以下方法手动切换Dnslog平台为`ceye.io`
 
 1. 下载源码使用任意IDE打开。
 2. Ceye.java 里需要修改"rootDomain"、"token"的值，对应ceye的profile页面中的Identifier、API Token。
